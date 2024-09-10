@@ -6,7 +6,6 @@ class Node:
         self.value = value
         self.next = None
  
- 
 class Stack:
     def __init__(self):
         self.head = Node("head")
@@ -46,77 +45,83 @@ class Stack:
         return remove.value
 
 class Calculate:
-    def __init__(self, equation:str):
-        pattern = re.compile(r'cos\(([-+]?(?:\d*\.*\d+))\)')
-        matches = list(pattern.finditer(equation))
-        pattern = re.compile(r'sin\(([-+]?(?:\d*\.*\d+))\)')
-        matches = list(pattern.finditer(equation)) + matches
-        pattern = re.compile(r'log\(([-+]?(?:\d*\,*.*\d+))\)')
-        matches = list(pattern.finditer(equation)) + matches
-        if matches:
-            matches = [match.group(0) for match in matches]
-            for i in matches:
-                equation = equation.replace(i, str(eval("math."+i)))
-        self.equation = equation
+    def __init__(self, equation: str):
+        self.equation = self.preprocess(equation)
+        
+    def preprocess(self, equation: str) -> str:
+        # Handle trigonometric and logarithmic functions
+        equation = re.sub(r'cos\(([^)]+)\)', lambda m: str(math.cos(math.radians(float(m.group(1))))), equation)
+        equation = re.sub(r'sin\(([^)]+)\)', lambda m: str(math.sin(math.radians(float(m.group(1))))), equation)
+        equation = re.sub(r'log\(([^,]+),\s*([^)]+)\)', lambda m: str(math.log(float(m.group(1)), float(m.group(2)))), equation)
+        return equation
         
     def InfixToPostfix(self):
-        Operators = set(['+', '-', '*', '/', '(', ')', '^'])  
-        Priority = {'+':1, '-':1, '*':2, '/':2, '^':3}
+        Operators = set(['+', '-', '*', '/', '(', ')', '^'])
+        Priority = {'+': 1, '-': 1, '*': 2, '/': 2, '^': 3}
         stack = Stack()
-        output = [] 
+        output = []
         put = ''
 
         for character in self.equation:
-            if character not in Operators:
+            if character.isdigit() or character == '.':
                 put += character
-
-            elif character=='(':
+            elif character == '(':
+                if put:
+                    output.append(put)
+                    put = ''
                 stack.push('(')
-
-            elif character==')':
+            elif character == ')':
                 if put:
                     output.append(put)
-                    put=''
-                while not(stack.isEmpty()) and stack.peek()!='(':
-                    output+=stack.pop()
-                stack.pop()
-
-            else:
+                    put = ''
+                while not stack.isEmpty() and stack.peek() != '(':
+                    output.append(stack.pop())
+                stack.pop()  # Pop the '('
+            elif character in Operators:
                 if put:
                     output.append(put)
-                    put=''
-                while not(stack.isEmpty()) and stack.peek()!='(' and Priority[character]<=Priority[stack.peek()]:
-                    output+=stack.pop()
+                    put = ''
+                while (not stack.isEmpty()) and stack.peek() in Operators and Priority[character] <= Priority[stack.peek()]:
+                    output.append(stack.pop())
                 stack.push(character)
+
         if put:
             output.append(put)
-        while not(stack.isEmpty()):
-            output+=stack.pop()
-        
+
+        while not stack.isEmpty():
+            output.append(stack.pop())
+
         self.postfix = output
         return output
 
     def compute(self):
-        Operators = set(['+', '-', '*', '/', '^'])  
+        Operators = set(['+', '-', '*', '/', '^'])
         postfix = self.InfixToPostfix()
         stack = Stack()
+
         for character in postfix:
             if character not in Operators:
                 stack.push(character)
             else:
                 a = float(stack.pop())
                 b = float(stack.pop())
-                stack.push(eval(f"{b}{character}{a}"))
-        return(stack.pop())
+                if character == '+':
+                    stack.push(b + a)
+                elif character == '-':
+                    stack.push(b - a)
+                elif character == '*':
+                    stack.push(b * a)
+                elif character == '/':
+                    if a == 0:
+                        raise ZeroDivisionError("Division by zero.")
+                    stack.push(b / a)
+                elif character == '^':
+                    stack.push(b ** a)
 
-            
-            
-    
+        return stack.pop()
 
-                
-
-
-# calculate(str(input("")))
-Calculate("3*cos(0)+cos(1)+sin(0)+log(2, 2)")
-a = Calculate("1+2*(3/(4+5))*6+cos(0)")
-print(a.compute())
+# Example usage
+expression = "1+2*(3/(4+5))*6+cos(0)+log(2, 2)"
+calc = Calculate(expression)
+result = calc.compute()
+print(f"Result of '{expression}': {result}")
